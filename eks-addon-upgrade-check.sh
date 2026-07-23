@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 # eks-addon-upgrade-check.sh
-# Pre-upgrade compatibility check for EKS managed add-ons.
-# See 01-eks-addon-upgrade-check-script.md for the design.
+#
+# Purpose:
+#   Pre-upgrade compatibility check for EKS managed add-ons.
+#   Check for add-ons with hard requirements in the proposed or target upgrade version.
+#   This script also flags addon degradation status.
+#
+#   This script is READ-ONLY. It only runs "describe", "list", "get" and
+#   similar commands to AWS account or EkS. It NEVER modifies, deletes, or upgrades anything.
+#   It writes only to user-configured cache/output paths plus mktemp scratch (that is cleaned on exit).
+#
+# Safety:
+#   Safe to run in production with production-scoped read-only credentials, 
+#   including a notice such as — this is a "describe/list" tool by construction.
 #
 # Dependencies: aws CLI v2, jq >= 1.6, curl. sha256sum OR shasum.
-# License: internal use; safe for public distribution under AWS samples.
 
 set -Eeuo pipefail
 
