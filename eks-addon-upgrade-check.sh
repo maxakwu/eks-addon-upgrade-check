@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # eks-addon-upgrade-check.sh
 #
+# Refer to the AWS guidance on upgrade best practices:
+#   https://docs.aws.amazon.com/eks/latest/best-practices/cluster-upgrades.html
+#
 # Purpose:
 #   Pre-upgrade compatibility check for EKS managed add-ons.
 #   Check for add-ons with hard requirements in the proposed or target upgrade version.
@@ -56,14 +59,15 @@ E_AWS=11
 E_MANIFEST=12
 E_PARTIAL=13
 
-# Grade ordinals
+# Grade ordinals. BREAKING_HARD is the single "upgrade blocks here" tier —
+# the remediation (fix available vs. requires reconfiguration) belongs in
+# the finding's title/detail, not the tier name.
 grade_ord() {
   case "$1" in
     CLEAN) echo 0 ;;
     FYI) echo 1 ;;
     SOFT) echo 2 ;;
-    BREAKING_FIX) echo 3 ;;
-    BREAKING_HARD) echo 4 ;;
+    BREAKING_HARD) echo 3 ;;
     UNKNOWN) echo 0 ;;
     *) echo 0 ;;
   esac
@@ -1315,10 +1319,10 @@ build_json_report() {
     {
       totalAddons: length,
       totalFindings: ([.[].findings | length] | add // 0),
-      byGrade: (reduce .[] as $a ({CLEAN:0,FYI:0,SOFT:0,BREAKING_FIX:0,BREAKING_HARD:0,UNKNOWN:0};
+      byGrade: (reduce .[] as $a ({CLEAN:0,FYI:0,SOFT:0,BREAKING_HARD:0,UNKNOWN:0};
                  .[$a.grade] += 1)),
       findingsByGrade: (reduce (.[].findings // [])[] as $f
-                          ({CLEAN:0,FYI:0,SOFT:0,BREAKING_FIX:0,BREAKING_HARD:0,UNKNOWN:0};
+                          ({CLEAN:0,FYI:0,SOFT:0,BREAKING_HARD:0,UNKNOWN:0};
                            .[$f.grade] += 1))
     }')
 
@@ -1363,7 +1367,6 @@ grade_badge() {
     CLEAN)          printf '%sCLEAN%s' "$_c_green" "$_c_reset" ;;
     FYI)            printf '%sFYI%s' "$_c_blue" "$_c_reset" ;;
     SOFT)           printf '%sSOFT%s' "$_c_yellow" "$_c_reset" ;;
-    BREAKING_FIX)   printf '%sBREAKING_FIX%s' "$_c_red" "$_c_reset" ;;
     BREAKING_HARD)  printf '%sBREAKING_HARD%s' "$_c_red" "$_c_reset" ;;
     *)              printf '%s' "$1" ;;
   esac
@@ -1447,14 +1450,14 @@ render_markdown() {
   printf '### Findings by grade\n\n'
   printf '| Grade | Findings |\n|-------|---------:|\n'
   local g
-  for g in CLEAN FYI SOFT BREAKING_FIX BREAKING_HARD UNKNOWN; do
+  for g in CLEAN FYI SOFT BREAKING_HARD UNKNOWN; do
     printf '| %s | %s |\n' "$g" "$(printf '%s' "$report" | jq -r --arg g "$g" '.summary.findingsByGrade[$g] // 0')"
   done
   printf '\n'
 
   printf '### Add-ons by overall grade\n\n'
   printf '| Grade | Add-ons |\n|-------|--------:|\n'
-  for g in CLEAN FYI SOFT BREAKING_FIX BREAKING_HARD UNKNOWN; do
+  for g in CLEAN FYI SOFT BREAKING_HARD UNKNOWN; do
     printf '| %s | %s |\n' "$g" "$(printf '%s' "$report" | jq -r --arg g "$g" '.summary.byGrade[$g] // 0')"
   done
   printf '\n'
